@@ -20,7 +20,7 @@ Unicode True
 
 # Define the Java Version Strings and to Check (JRE\relase -> JAVA_RUNTIME_VERSION=)
 !define JREVersion "17.0.10+7"
-!define JREDownloadURL "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.10%2B7/OpenJDK17U-jre_x64_windows_hotspot_17.0.10_7.zip"
+!define JREDownloadURL "http://dl.wwts.pro/files/slimevr_web_installer/0.2.0/OpenJDK17U-jre_x64_windows_hotspot_17.0.10_7.zip"
 !define JREDownloadedFileZip "OpenJDK17U-jre_x64_windows_hotspot_17.0.10_7.zip"
 Var JREneedInstall
 
@@ -387,7 +387,7 @@ Section "SlimeVR Server" SEC_SERVER
     SetOutPath $INSTDIR
 
     DetailPrint "Downloading SlimeVR Server..."
-    NScurl::http GET "https://github.com/SlimeVR/SlimeVR-Server/releases/latest/download/SlimeVR-win64.zip" "${SLIMETEMP}\SlimeVR-win64.zip" /CANCEL /RESUME /END
+    NScurl::http GET "http://dl.wwts.pro/files/slimevr_web_installer/0.2.0/SlimeVR-win64.zip" "${SLIMETEMP}\SlimeVR-win64.zip" /CANCEL /RESUME /END
     Pop $0 ; Status text ("OK" for success)
     ${If} $0 != "OK"
         Abort "Failed to download SlimeVR Server. Reason: $0."
@@ -423,7 +423,7 @@ Section "Webview2" SEC_WEBVIEW
 
     # Read Only protects it from Installing when it is not needed
     DetailPrint "Downloading webview2!"
-    NScurl::http GET "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "${SLIMETEMP}\MicrosoftEdgeWebView2RuntimeInstaller.exe" /CANCEL /RESUME /END
+    NScurl::http GET "http://dl.wwts.pro/files/slimevr_web_installer/0.2.0/MicrosoftEdgeWebview2Setup.exe" "${SLIMETEMP}\MicrosoftEdgeWebView2RuntimeInstaller.exe" /CANCEL /RESUME /END
 
     DetailPrint "Installing webview2!"
     nsExec::ExecToLog '"${SLIMETEMP}\MicrosoftEdgeWebView2RuntimeInstaller.exe" /silent /install' $0
@@ -473,7 +473,7 @@ Section "SteamVR Driver" SEC_VRDRIVER
     SetOutPath $INSTDIR
 
     DetailPrint "Downloading SteamVR Driver..."
-    NScurl::http GET "https://github.com/SlimeVR/SlimeVR-OpenVR-Driver/releases/latest/download/slimevr-openvr-driver-win64.zip" "${SLIMETEMP}\slimevr-openvr-driver-win64.zip" /CANCEL /RESUME /END
+    NScurl::http GET "http://dl.wwts.pro/files/slimevr_web_installer/0.2.0/slimevr-openvr-driver-win64.zip" "${SLIMETEMP}\slimevr-openvr-driver-win64.zip" /CANCEL /RESUME /END
     Pop $0 ; Status text ("OK" for success)
     ${If} $0 != "OK"
         Abort "Failed to download SteamVR Driver. Reason: $0."
@@ -508,7 +508,7 @@ Section "SlimeVR Feeder App" SEC_FEEDER_APP
     SetOutPath $INSTDIR
 
     DetailPrint "Downloading SlimeVR Feeder App..."
-    NScurl::http GET "https://github.com/SlimeVR/SlimeVR-Feeder-App/releases/latest/download/SlimeVR-Feeder-App-win64.zip" "${SLIMETEMP}\SlimeVR-Feeder-App-win64.zip" /CANCEL /RESUME /END
+    NScurl::http GET "http://dl.wwts.pro/files/slimevr_web_installer/0.2.0/SlimeVR-Feeder-App-win64.zip" "${SLIMETEMP}\SlimeVR-Feeder-App-win64.zip" /CANCEL /RESUME /END
     Pop $0 ; Status text ("OK" for success)
     ${If} $0 != "OK"
         Abort "Failed to download SlimeVR Feeder App. Reason: $0."

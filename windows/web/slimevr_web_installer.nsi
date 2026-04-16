@@ -1,5 +1,17 @@
 Unicode True
 
+!AddPluginDir /x86-unicode     "plugins\NScurl\x86-unicode"
+!AddPluginDir /x86-ansi        "plugins\NScurl\x86-ansi"
+!AddPluginDir /amd64-unicode   "plugins\NScurl\amd64-unicode"
+!AddPluginDir /x86-unicode     "plugins\AccessControl\x86-unicode"
+!AddPluginDir /x86-ansi        "plugins\AccessControl\x86-ansi"
+!AddPluginDir /amd64-unicode   "plugins\AccessControl\amd64-unicode"
+!AddPluginDir /x86-unicode     "plugins\Nsisunz\x86-unicode"
+!AddPluginDir /x86-ansi        "plugins\Nsisunz\x86-ansi"
+!AddPluginDir /x86-unicode     "plugins\NsProcess\x86-unicode"
+!AddPluginDir /x86-ansi        "plugins\NsProcess\x86-ansi"
+!AddPluginDir /amd64-unicode   "plugins\NsProcess\amd64-unicode"
+
 !include x64.nsh 		; For RunningX64 check
 !include LogicLib.nsh	; For conditional operators
 !include nsDialogs.nsh  ; For custom pages
@@ -9,6 +21,9 @@ Unicode True
 !include TextFunc.nsh   ; For ConfigRead
 !include MUI2.nsh
 !include .\steamdetect.nsh
+!include .\dlmacro.nsh
+
+!define CSIDL_COMMON_DOCUMENTS 0x002E ; Define CSIDL_COMMON_DOCUMENTS if not already defined
 
 !define SF_USELECTED  0
 !define MUI_ICON "run.ico"
@@ -18,12 +33,35 @@ Unicode True
 !define MUI_HEADERIMAGE_RIGHT
 !define SLIMETEMP "$TEMP\SlimeVRInstaller"
 
-# Define the Java Version Strings and to Check (JRE\relase -> JAVA_RUNTIME_VERSION=)
-!define JREVersion "17.0.15+6"
-!define JREDownloadURL "http://dl.wwts.pro/files/slimevr_web_installer/0.2.1/OpenJDK17U-jre_x64_windows_hotspot_17.0.15_6.zip"
-!define JREDownloadedFileZip "OpenJDK17U-jre_x64_windows_hotspot_17.0.15_6.zip"
-Var JREneedInstall
+# Define all download URLs and versions here for easy editing
+!define MVCVersion ""
+!define MVCURLType "url" ; "url" or "local"
+!define MVCDLURL "http://dl.wwts.pro/files/slimevr_web_installer/4.0.0/vc_redist.x64.exe"
+!define MVCDLFileZip "vc_redist.x64.exe"
 
+# Define the Java Version Strings and to Check (JRE\relase -> JAVA_RUNTIME_VERSION=)
+!define JREVersion "17.0.17+10"
+!define JREURLType "url" ; "url" or "local"
+!define JREDLURL "http://dl.wwts.pro/files/slimevr_web_installer/4.0.0/OpenJDK17U-jre_x64_windows_hotspot_17.0.17_10.zip"
+!define JREDLFileZip "OpenJDK17U-jre_x64_windows_hotspot_17.0.17_10.zip"
+
+!define SVRServerVersion "latest"
+!define SVRServerURLType "url" ; "url" or "local"
+!define SVRServerDLURL "http://dl.wwts.pro/files/slimevr_web_installer/4.0.0/SlimeVR-win64.zip"
+!define SVRServerDLFileZip "SlimeVR-Server-latest.zip"
+
+!define SVRDriverVersion "latest"
+!define SVRDriverURLType "url" ; "url" or "local"
+!define SVRDriverDLURL "http://dl.wwts.pro/files/slimevr_web_installer/4.0.0/slimevr-openvr-driver-win64.zip"
+!define SVRDriverDLFileZip "slimevr-openvr-driver-win64.zip"
+
+!define SVRFeederVersion "latest"
+!define SVRFeederURLType "url" ; "url" or "local"
+!define SVRFeederDLURL "http://dl.wwts.pro/files/slimevr_web_installer/4.0.0/SlimeVR-Feeder-App-win64.zip"
+!define SVRFeederDLFileZip "SlimeVR-Feeder-App-latest.zip"
+
+Var JREneedInstall
+Var /GLOBAL PUBLIC
 Var /GLOBAL SteamVRResult
 Var /GLOBAL SteamVRLabelID
 Var /GLOBAL SteamVRLabelTxt
@@ -47,7 +85,7 @@ InstallDir "$PROGRAMFILES\SlimeVR Server" ; $InstDir default value. Defaults to 
 ShowInstDetails show
 ShowUninstDetails show
 
-BrandingText "SlimeVR Installer 0.2.1"
+BrandingText "SlimeVR Installer 4.0.0"
 
 # Admin rights are required for:
 # 1. Removing Start Menu shortcut in Windows 7+
@@ -78,6 +116,13 @@ Function .onInit
         ReadRegStr $0 HKLM SOFTWARE\Valve\Steam InstallPath
     ${EndIf}
     StrCpy $STEAMDIR $0
+
+    ; Get "Public" user profile folder
+    StrCpy $0 ""
+    System::Call 'shell32::SHGetFolderPathW(i 0, i ${CSIDL_COMMON_DOCUMENTS}, i 0, i 0, t .r0)'
+    ${GetParent} $0 $0
+    StrCpy $PUBLIC $0
+
 FunctionEnd
 
 !insertmacro ProcessCheck "un." "SteamVRResult"
@@ -100,7 +145,7 @@ FunctionEnd
 
 Function .onInstFailed
     ${If} $SELECTED_INSTALLER_ACTION == ""
-        Call cleanInstDir
+        RMDir /r $INSTDIR
     ${Endif}
 FunctionEnd
 
@@ -108,28 +153,6 @@ Function .onGUIEnd
     Call cleanTemp
 FunctionEnd
 
-Function cleanInstDir
-    Delete "$INSTDIR\uninstall.exe"
-    Delete "$INSTDIR\run.bat"
-    Delete "$INSTDIR\run.ico"
-    Delete "$INSTDIR\slimevr*"
-    Delete "$INSTDIR\firewall*.bat"
-    Delete "$INSTDIR\MagnetoLib.dll"
-    Delete "$INSTDIR\steamvr.ps1"
-    Delete "$INSTDIR\log*"
-    Delete "$INSTDIR\*.log"
-    Delete "$INSTDIR\*.lck"
-    Delete "$INSTDIR\vrconfig.yml"
-    Delete "$INSTDIR\LICENSE*"
-
-    RMDir /r "$INSTDIR\Recordings"
-    RMdir /r "$INSTDIR\jre"
-    RMdir /r "$INSTDIR\driver"
-    RMDir /r "$INSTDIR\logs"
-    RMdir /r "$INSTDIR\Feeder-App"
-
-    RMDir $INSTDIR
-FunctionEnd
 # Init functions end #
 
 Page Custom startPage startPageLeave
@@ -262,7 +285,7 @@ Function endPageLeave
     ${If} $0 = 1
         CreateDirectory "$SMPROGRAMS\SlimeVR Server"
         CreateShortcut "$SMPROGRAMS\SlimeVR Server\Uninstall SlimeVR Server.lnk" "$INSTDIR\uninstall.exe"
-        CreateShortcut "$SMPROGRAMS\SlimeVR Server\SlimeVR Server.lnk" "$INSTDIR\slimevr.exe" ""
+        CreateShortcut "$SMPROGRAMS\SlimeVR Server\SlimeVR Server.lnk" "$INSTDIR\SlimeVR.exe" ""
     ${Else}
         Delete "$SMPROGRAMS\Uninstall SlimeVR Server.lnk"
         Delete "$SMPROGRAMS\SlimeVR Server.lnk"
@@ -270,7 +293,7 @@ Function endPageLeave
     ${Endif}
 
     ${If} $1 = 1
-        CreateShortcut "$DESKTOP\SlimeVR Server.lnk" "$INSTDIR\slimevr.exe" ""
+        CreateShortcut "$DESKTOP\SlimeVR Server.lnk" "$INSTDIR\SlimeVR.exe" ""
     ${Else}
         Delete "$DESKTOP\SlimeVR Server.lnk"
     ${EndIf}
@@ -280,7 +303,8 @@ Function endPageLeave
     ${EndIf}
 
     ${If} $3 = 1
-        Exec "$INSTDIR\slimevr.exe"
+        # use explorer to open it so it inherits the user token and starts as normal user
+        Exec '"$WINDIR\explorer.exe" "$INSTDIR\SlimeVR.exe"'
     ${EndIf}
 
 FunctionEnd
@@ -398,66 +422,33 @@ Section "SlimeVR Server" SEC_SERVER
 
     SetOutPath $INSTDIR
 
-    DetailPrint "Downloading SlimeVR Server..."
-    NScurl::http GET "http://dl.wwts.pro/files/slimevr_web_installer/0.2.1/SlimeVR-win64.zip" "${SLIMETEMP}\SlimeVR-win64.zip" /CANCEL /RESUME /END
-    Pop $0 ; Status text ("OK" for success)
-    ${If} $0 != "OK"
-        Abort "Failed to download SlimeVR Server. Reason: $0."
-    ${EndIf}
-    DetailPrint "Downloaded!"
+    !insertmacro dlFile "${SVRServerURLType}" "SlimeVR Server" "${SVRServerVersion}" "${SVRServerDLURL}" "${SVRServerDLFileZip}"
 
-    nsisunz::Unzip "${SLIMETEMP}\SlimeVR-win64.zip" "${SLIMETEMP}\SlimeVR\"
-    Pop $0
-    DetailPrint "Unzipping finished with $0."
-
-    ${If} $SELECTED_INSTALLER_ACTION == "update"
-        Delete "$INSTDIR\slimevr-ui.exe"
-    ${EndIf}
+    CreateDirectory "${SLIMETEMP}\SlimeVR"
+    !insertmacro unzipFile "SlimeVR Server" "${SVRServerVersion}" "${SLIMETEMP}\${SVRServerDLFileZip}" "${SLIMETEMP}\SlimeVR"
 
     DetailPrint "Copying SlimeVR Server to installation folder..."
-    CopyFiles /SILENT "${SLIMETEMP}\SlimeVR\SlimeVR\*" $INSTDIR
+    CopyFiles /SILENT "${SLIMETEMP}\SlimeVR\*" $INSTDIR
 
-    IfFileExists "$INSTDIR\slimevr-ui.exe" found not_found
-    found:
-        Delete "$INSTDIR\slimevr.exe"
-        Rename "$INSTDIR\slimevr-ui.exe" "$INSTDIR\slimevr.exe"
-    not_found:
-
-    Delete "$INSTDIR\run.bat"
-    Delete "$INSTDIR\run.ico"
+    ${If} $SELECTED_INSTALLER_ACTION == "update"
+        IfFileExists "$LOCALAPPDATA\dev.slimevr.SlimeVR" 0 SEC_TAURI_DIRNOTFOUND
+            RMDir /r "$LOCALAPPDATA\dev.slimevr.SlimeVR"
+        SEC_TAURI_DIRNOTFOUND:
+        
+        IfFileExists "$APPDATA\dev.slimevr.SlimeVR\electron" 0 SEC_ELECTON_DIRNOTFOUND
+            RMDir /r "$APPDATA\dev.slimevr.SlimeVR\electron"
+        SEC_ELECTON_DIRNOTFOUND:
+    ${EndIf}
     
     # Create the uninstaller
     WriteUninstaller "$INSTDIR\uninstall.exe"
 SectionEnd
 
-Section "Webview2" SEC_WEBVIEW
-    SectionIn RO
-
-    # Read Only protects it from Installing when it is not needed
-    DetailPrint "Downloading webview2!"
-    NScurl::http GET "http://dl.wwts.pro/files/slimevr_web_installer/0.2.1/MicrosoftEdgeWebview2Setup.exe" "${SLIMETEMP}\MicrosoftEdgeWebView2RuntimeInstaller.exe" /CANCEL /RESUME /END
-
-    DetailPrint "Installing webview2!"
-    nsExec::ExecToLog '"${SLIMETEMP}\MicrosoftEdgeWebView2RuntimeInstaller.exe" /silent /install' $0
-    Pop $0
-    DetailPrint "Installing finished with $0."
-    ${If} $0 != 0
-        Abort "Failed to install webview 2"
-    ${EndIf}
-
-SectionEnd
-
 Section "Java JRE" SEC_JRE
     SectionIn RO
-    
-    DetailPrint "Downloading Java JRE ${JREVersion}..."
-    NScurl::http GET "${JREDownloadURL}" "${SLIMETEMP}\${JREDownloadedFileZip}" /CANCEL /RESUME /END
-    
-    Pop $0 ; Status text ("OK" for success)
-    ${If} $0 != "OK"
-        Abort "Failed to download Java JRE ${JREVersion}. Reason: $0."
-    ${EndIf}
-    DetailPrint "Downloaded!"
+
+    !insertmacro dlFile "${JREURLType}" "Java JRE" "${JREVersion}" "${JREDLURL}" "${JREDLFileZip}"
+    !insertmacro unzipFile "Java JRE" "${JREVersion}" "${SLIMETEMP}\${JREDLFileZip}" "${SLIMETEMP}\OpenJDK"
 
     # Make sure to delete all files on a update from jre, so if there is a new version no old files are left.
     IfFileExists "$INSTDIR\jre" 0 SEC_JRE_DIRNOTFOUND
@@ -465,12 +456,7 @@ Section "Java JRE" SEC_JRE
         RMdir /r "$INSTDIR\jre"
         CreateDirectory "$INSTDIR\jre"
     SEC_JRE_DIRNOTFOUND:
-
-    DetailPrint "Unzipping Java JRE ${JREVersion} to installation folder...."
-    nsisunz::Unzip "${SLIMETEMP}\${JREDownloadedFileZip}" "${SLIMETEMP}\OpenJDK\"
-    Pop $0
-    DetailPrint "Unzipping finished with $0."
-
+# Todo: Make a better way to copy the jre folder, since the version number is in the folder name
     FindFirst $0 $1 "${SLIMETEMP}\OpenJDK\jdk-17.*-jre"
     loop:
         StrCmp $1 "" done
@@ -484,24 +470,32 @@ SectionEnd
 Section "SteamVR Driver" SEC_VRDRIVER
     SetOutPath $INSTDIR
 
-    DetailPrint "Downloading SteamVR Driver..."
-    NScurl::http GET "http://dl.wwts.pro/files/slimevr_web_installer/0.2.1/slimevr-openvr-driver-win64.zip" "${SLIMETEMP}\slimevr-openvr-driver-win64.zip" /CANCEL /RESUME /END
-    Pop $0 ; Status text ("OK" for success)
-    ${If} $0 != "OK"
-        Abort "Failed to download SteamVR Driver. Reason: $0."
-    ${EndIf}
-    DetailPrint "Downloaded!"
-
-    DetailPrint "Unpacking downloaded files..."
-    nsisunz::Unzip "${SLIMETEMP}\slimevr-openvr-driver-win64.zip" "${SLIMETEMP}\slimevr-openvr-driver-win64\"
-    Pop $0
-    DetailPrint "Unzipping finished with $0."
+    !insertmacro dlFile "${SVRDriverURLType}" "SteamVR Driver" "${SVRDriverVersion}" "${SVRDriverDLURL}" "${SVRDriverDLFileZip}"
+    !insertmacro unzipFile "SteamVR Driver" "${SVRDriverVersion}" "${SLIMETEMP}\${SVRDriverDLFileZip}" "${SLIMETEMP}\slimevr-openvr-driver-win64"
 
     # Include SteamVR powershell script to register/unregister driver
     File "steamvr.ps1"
+    File "steamcleanexternaldrivers.ps1"
+
+    DetailPrint "Removing old external drivers in SteamVR Config..."
+    # If powershell is present - rely on automatic detection.
+
+    ${DisableX64FSRedirection}
+    CreateShortcut "$INSTDIR\steamcleanexternaldrivers.lnk" "$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" '-ExecutionPolicy Bypass -WindowStyle Hidden -File "$INSTDIR\steamcleanexternaldrivers.ps1"' "$INSTDIR\steamcleanexternaldrivers.ps1" 0
+    Exec "explorer.exe $INSTDIR\steamcleanexternaldrivers.lnk"
+    Sleep 5000
+    ${EnableX64FSRedirection}
+    IfFileExists "$PUBLIC\Documents\SlimeVRUninstall_log.txt" 0 no_log
+        FileOpen $1 "$PUBLIC\Documents\SlimeVRUninstall_log.txt" r
+        FileRead $1 $2
+        DetailPrint "$2"
+        FileClose $1
+        Delete "$PUBLIC\Documents\SlimeVRUninstall_log.txt"
+    no_log:
+    Delete "$INSTDIR\steamcleanexternaldrivers.lnk"
+    Delete "$INSTDIR\steamcleanexternaldrivers.ps1"
 
     DetailPrint "Copying SteamVR Driver to SteamVR..."
-    # If powershell is present - rely on automatic detection.
     ${DisableX64FSRedirection}
     nsExec::ExecToLog '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe" -ExecutionPolicy Bypass -File "$INSTDIR\steamvr.ps1" -SteamPath "$STEAMDIR" -DriverPath "${SLIMETEMP}\slimevr-openvr-driver-win64\slimevr"' $0
     ${EnableX64FSRedirection}
@@ -519,18 +513,9 @@ SectionEnd
 Section "SlimeVR Feeder App" SEC_FEEDER_APP
     SetOutPath $INSTDIR
 
-    DetailPrint "Downloading SlimeVR Feeder App..."
-    NScurl::http GET "http://dl.wwts.pro/files/slimevr_web_installer/0.2.1/SlimeVR-Feeder-App-win64.zip" "${SLIMETEMP}\SlimeVR-Feeder-App-win64.zip" /CANCEL /RESUME /END
-    Pop $0 ; Status text ("OK" for success)
-    ${If} $0 != "OK"
-        Abort "Failed to download SlimeVR Feeder App. Reason: $0."
-    ${EndIf}
-    DetailPrint "Downloaded!"
-
-    DetailPrint "Unpacking downloaded files..."
-    nsisunz::Unzip "${SLIMETEMP}\SlimeVR-Feeder-App-win64.zip" "${SLIMETEMP}"
-    Pop $0
-    DetailPrint "Unzipping finished with $0."
+    !insertmacro dlFile "${SVRFeederURLType}" "SlimeVR Feeder App" "${SVRFeederVersion}" "${SVRFeederDLURL}" "${SVRFeederDLFileZip}"
+    # The zip contains a folder named SlimeVR-Feeder-App-win64
+    !insertmacro unzipFile "SlimeVR Feeder App" "${SVRFeederVersion}" "${SLIMETEMP}\${SVRFeederDLFileZip}" "${SLIMETEMP}"
 
     DetailPrint "Copying SlimeVR Feeder App..."
     CopyFiles /SILENT "${SLIMETEMP}\SlimeVR-Feeder-App-win64\*" "$INSTDIR\Feeder-App"
@@ -541,13 +526,9 @@ SectionEnd
 
 Section "Microsoft Visual C++ Redistributable" SEC_MSVCPP
     SetOutPath $INSTDIR
-    DetailPrint "Downloading Microsoft Visual C++ Redistributable..."
-    NScurl::http GET "http://dl.wwts.pro/files/slimevr_web_installer/0.2.1/vc_redist.x64.exe" "${SLIMETEMP}\vc_redist.x64.exe" /CANCEL /RESUME /END
-    Pop $0 ; Status text ("OK" for success)
-    ${If} $0 != "OK"
-        Abort "Failed to download Microsoft Visual C++ Redistributable. Reason: $0."
-    ${EndIf}
-    DetailPrint "Downloaded!"
+
+    !insertmacro dlFile "${MVCURLType}" "Microsoft Visual C++ Redistributable" "${MVCVersion}" "${MVCDLURL}" "${MVCDLFileZip}"
+
     DetailPrint "Installing Microsoft Visual C++ Redistributable..."
     nsExec::ExecToLog '"${SLIMETEMP}\vc_redist.x64.exe" /install /passive /norestart' $0
     Pop $0 ; Status text ("OK" for success)
@@ -658,7 +639,7 @@ Section "-" SEC_REGISTERAPP
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SlimeVR" \
                     "UninstallString" '"$INSTDIR\uninstall.exe"'
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SlimeVR" \
-                    "DisplayIcon" "$INSTDIR\slimevr.exe"
+                    "DisplayIcon" "$INSTDIR\SlimeVR.exe"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SlimeVR" \
                     "HelpLink" "https://docs.slimevr.dev/"
     WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\SlimeVR" \
@@ -689,7 +670,6 @@ Function componentsPre
     ${If} $SELECTED_INSTALLER_ACTION == "update"
         SectionSetFlags ${SEC_FIREWALL} ${SF_SELECTED}
         SectionSetFlags ${SEC_REGISTERAPP} 0
-        SectionSetFlags ${SEC_WEBVIEW} ${SF_SELECTED}
         SectionSetFlags ${SEC_MSVCPP} ${SF_SELECTED}
         SectionSetFlags ${SEC_USBDRIVERS} ${SF_SECGRP}
         SectionSetFlags ${SEC_SERVER} ${SF_SELECTED}
@@ -714,18 +694,6 @@ Function componentsPre
         SectionSetFlags ${SEC_JRE} ${SF_USELECTED}
     ${EndIf}
 
-    # Detect WebView2
-    # https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/distribution#detect-if-a-suitable-webview2-runtime-is-already-installed
-    # Trying to solve #41 Installer doesn't always install WebView2
-    # Ignoring only user installed WebView2 it seems to make problems
-    ${If} ${RunningX64}
-        ReadRegStr $0 HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
-        ReadRegStr $1 HKCU "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
-    ${Else}
-        ReadRegStr $0 HKLM "SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
-        ReadRegStr $1 HKCU "Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
-    ${EndIf}
-
     ${If} $0 == ""
     ${OrIf} $0 == "0.0.0.0"
         StrCpy $0 ""
@@ -740,12 +708,6 @@ Function componentsPre
         StrCpy $1 "1"
     ${EndIf}
 
-    ${If} $0 == ""
-    ${AndIf} $1 == ""
-        SectionSetFlags ${SEC_WEBVIEW} ${SF_SELECTED}|${SF_RO}
-    ${Else}
-        SectionSetFlags ${SEC_WEBVIEW} ${SF_USELECTED}
-    ${EndIf}
 FunctionEnd
 
 Function .onSelChange
@@ -768,23 +730,11 @@ Section "-un.SlimeVR Server" un.SEC_SERVER
     Delete "$SMPROGRAMS\Uninstall SlimeVR Server.lnk"
     Delete "$SMPROGRAMS\SlimeVR Server.lnk"
     Delete "$DESKTOP\SlimeVR Server.lnk"
-    Delete "$INSTDIR\slimevr-ui.exe"
-    Delete "$INSTDIR\run.bat"
-    Delete "$INSTDIR\run.ico"
+    RMDir /r "$LOCALAPPDATA\dev.slimevr.SlimeVR"
+    RMDir /r "$APPDATA\dev.slimevr.SlimeVR\electron"
     # Ignore errors on the files above, they are optional to remove and may not even exist
     ClearErrors
-    Delete "$INSTDIR\slimevr*"
-    Delete "$INSTDIR\MagnetoLib.dll"
-    Delete "$INSTDIR\log*"
-    Delete "$INSTDIR\*.log"
-    Delete "$INSTDIR\*.lck"
-    Delete "$INSTDIR\vrconfig.yml"
-    Delete "$INSTDIR\LICENSE*"
-    Delete "$INSTDIR\ThirdPartyNotices.txt"
-
-    RMDir /r "$INSTDIR\Recordings"
-    RMdir /r "$INSTDIR\jre"
-    RMDir /r "$INSTDIR\logs"
+    RMDir /r $INSTDIR
 
     IfErrors fail success
     fail:
@@ -830,7 +780,6 @@ SectionEnd
 
 LangString DESC_SEC_SERVER ${LANG_ENGLISH} "Installs latest SlimeVR Server."
 LangString DESC_SEC_JRE ${LANG_ENGLISH} "Downloads and copies Java JRE 17 to installation folder. Required for SlimeVR Server."
-LangString DESC_SEC_WEBVIEW ${LANG_ENGLISH} "Downloads and install Webview2 if not already installed. Required for the SlimeVR GUI"
 LangString DESC_SEC_VRDRIVER ${LANG_ENGLISH} "Installs latest SteamVR Driver for SlimeVR."
 LangString DESC_SEC_USBDRIVERS ${LANG_ENGLISH} "A list of USB drivers that are used by various boards."
 LangString DESC_SEC_FEEDER_APP ${LANG_ENGLISH} "Installs SlimeVR Feeder App that sends position of SteamVR trackers (Vive trackers, controllers) to SlimeVR Server. Required for elbow tracking."
@@ -846,7 +795,6 @@ LangString DESC_PROCESS_ERROR ${LANG_ENGLISH} "An error happend while trying for
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
     !insertmacro MUI_DESCRIPTION_TEXT ${SEC_SERVER} $(DESC_SEC_SERVER)
     !insertmacro MUI_DESCRIPTION_TEXT ${SEC_JRE} $(DESC_SEC_JRE)
-    !insertmacro MUI_DESCRIPTION_TEXT ${SEC_WEBVIEW} $(DESC_SEC_WEBVIEW)
     !insertmacro MUI_DESCRIPTION_TEXT ${SEC_VRDRIVER} $(DESC_SEC_VRDRIVER)
     !insertmacro MUI_DESCRIPTION_TEXT ${SEC_FEEDER_APP} $(DESC_SEC_FEEDER_APP)
     !insertmacro MUI_DESCRIPTION_TEXT ${SEC_MSVCPP} $(DESC_SEC_MSVCPP)
